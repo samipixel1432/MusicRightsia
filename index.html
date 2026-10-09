@@ -1,0 +1,209 @@
+<title>MusicRights AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<style>
+/* Layout: expediente de asesoría — cabecera de caso, chat al centro, compositor fijo abajo */
+:root{
+  --bg:#f3f3f3; --surface:#ffffff; --fg:#0a0a0a; --muted:#5c5c5c; --line:#dadada;
+  --accent:#e4002b; --accent-soft:#fde7e9; --user:#e4002b; --user-fg:#ffffff;
+  --display:"Newsreader",Georgia,"Times New Roman",serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#000000; --surface:#121212; --fg:#f2f2f2; --muted:#a3a3a3; --line:#2a2a2a;
+  --accent:#ff2d45; --accent-soft:#2e0a0f; --user:#c4001f; --user-fg:#ffffff; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#000000; --surface:#121212; --fg:#f2f2f2; --muted:#a3a3a3; --line:#2a2a2a;
+  --accent:#ff2d45; --accent-soft:#2e0a0f; --user:#c4001f; --user-fg:#ffffff; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--body)}
+.app{display:flex;flex-direction:column;height:100%;max-width:820px;margin:0 auto;padding:0 16px}
+header{background:#000;color:#fff;margin:0 -16px;padding:22px 16px 16px;border-bottom:5px solid var(--accent);display:flex;flex-wrap:wrap;gap:10px 18px;align-items:end;justify-content:space-between}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{font:600 30px/1.1 var(--display);margin:6px 0 0;text-wrap:balance}
+header .eyebrow{color:#ff2d45}
+.sub{color:#bdbdbd;font-size:13px;margin:4px 0 0}
+.modes{display:flex;gap:6px;flex-wrap:wrap}
+.modes label{font:500 12px var(--mono);border:1px solid #444;border-radius:999px;padding:6px 11px;cursor:pointer;color:#d0d0d0;background:transparent}
+.modes input{position:absolute;opacity:0;pointer-events:none}
+.modes input:checked+span{color:#fff}
+.modes label:has(input:checked){border-color:#e4002b;background:#e4002b}
+.modes label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+#log{flex:1;overflow-y:auto;padding-block:20px;display:flex;flex-direction:column;gap:16px;min-height:0}
+.intro{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.intro h2{font:600 20px/1.25 var(--display);margin:0 0 6px}
+.intro p{margin:0 0 12px;color:var(--muted);max-width:62ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:13px;text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;padding:8px 12px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.msg{min-width:0}
+.msg.user{align-self:flex-end;max-width:85%;background:var(--user);color:var(--user-fg);padding:10px 14px;border-radius:12px 12px 2px 12px;white-space:pre-wrap}
+.msg.bot{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:14px 18px}
+.msg.bot .who{font:500 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.md h1,.md h2,.md h3{font-family:var(--display);line-height:1.25;margin:18px 0 6px}
+.md h1{font-size:22px}.md h2{font-size:19px}.md h3{font-size:17px}
+.md>:first-child{margin-top:0}
+.md p,.md ul,.md ol{margin:0 0 10px}
+.md ul,.md ol{padding-left:20px}
+.md strong{font-weight:600}
+.md .tw{overflow-x:auto;margin:8px 0 12px}
+.md table{border-collapse:collapse;font-size:13.5px;min-width:100%}
+.md th,.md td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.md th{background:var(--bg);font-weight:600}
+.md code{font-family:var(--mono);font-size:13px}
+.thinking{color:var(--muted);font-style:italic}
+.err{color:var(--accent);font-size:13px;margin-top:6px}
+footer{padding-block:12px 16px;border-top:1px solid var(--line)}
+form{display:flex;gap:8px;align-items:flex-end}
+textarea{flex:1;min-width:0;resize:none;font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;max-height:160px}
+button.primary{font:600 14px var(--body);background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 18px;cursor:pointer}
+button.primary:disabled{opacity:.5;cursor:default}
+.tools{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:12px;color:var(--muted)}
+.link{font:inherit;background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0}
+.notice{font-size:13px;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
+</style>
+
+<div class="app">
+  <header>
+    <div>
+      <div class="eyebrow">Asesor · Sony Music · Warner Music</div>
+      <h1>MusicRights AI</h1>
+      <p class="sub">Propiedad intelectual, ética y riesgos de la IA generativa musical (Suno, Udio).</p>
+    </div>
+    <div class="modes" role="radiogroup" aria-label="Formato de respuesta">
+      <label><input type="radio" name="mode" id="m-full" value="full" checked><span>Análisis completo</span></label>
+      <label><input type="radio" name="mode" id="m-table" value="table"><span>Tabla comparativa</span></label>
+      <label><input type="radio" name="mode" id="m-3min" value="3min"><span>Exposición 3 min</span></label>
+    </div>
+  </header>
+
+  <div id="log" aria-live="polite">
+    <div class="intro" id="intro">
+      <h2>Plantea una consulta sobre el caso</h2>
+      <p>El agente responde en 8 apartados, separa hechos comprobados de alegaciones e hipótesis, y compara bloqueo, licencias y rediseño de modelos. No sustituye la asesoría de un abogado.</p>
+      <div class="chips">
+        <button class="chip" type="button">¿Entrenar a Suno con canciones protegidas requiere licencia?</button>
+        <button class="chip" type="button">Compara bloquear Udio vs. un modelo de licencias con remuneración</button>
+        <button class="chip" type="button">¿Imitar el estilo de un artista infringe derechos de autor?</button>
+        <button class="chip" type="button">¿Qué controles técnicos deberían exigir las discográficas?</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <form id="f">
+      <textarea id="q" rows="2" placeholder="Escribe tu consulta…" aria-label="Consulta"></textarea>
+      <button class="primary" id="send" type="submit">Enviar</button>
+    </form>
+    <div class="tools">
+      <span id="status">Las respuestas usan tu cuenta de Claude.</span>
+      <span><button class="link" id="stop" type="button" hidden>Detener</button> <button class="link" id="reset" type="button">Nueva conversación</button></span>
+    </div>
+  </footer>
+</div>
+
+<script>
+const RULES = `Eres MusicRights AI, agente especializado en propiedad intelectual, inteligencia artificial generativa, ética tecnológica y análisis de riesgos en la industria musical. Asesoras a Sony Music Entertainment y Warner Music en la evaluación de plataformas como Suno AI y Udio, especialmente frente al uso de canciones protegidas por derechos de autor para entrenar modelos de IA.
+
+CONTEXTO: La industria musical enfrenta un conflicto legal y ético por el posible uso no autorizado de millones de canciones protegidas para entrenar modelos que generan música, voces e instrumentación a partir de texto. Riesgos: vulneración de derechos patrimoniales, reproducción de estilos, competencia comercial, remuneración de artistas y sostenibilidad económica de la industria. Considera los intereses de artistas, compositores, discográficas, desarrolladores de IA, plataformas digitales y consumidores.
+
+TAREA ante cada consulta:
+1. Identifica el problema legal, ético, técnico o económico.
+2. Analiza si entrenar IA con obras protegidas podría requerir autorización o licencias, según la legislación aplicable y las circunstancias.
+3. Evalúa efectos sobre ingresos, derechos patrimoniales y reconocimiento de los artistas.
+4. Compara tres alternativas: (a) bloquear legalmente las plataformas que incumplan la normativa; (b) permitir su funcionamiento con licencias y remuneración a titulares; (c) rediseñar los modelos para usar solo dominio público, obras propias o contenido licenciado.
+5. Recomienda controles técnicos, jurídicos y organizacionales.
+6. Identifica decisiones que requieren revisión de abogados, directivos y representantes de artistas.
+7. Elabora una recomendación final equilibrada con ventajas, desventajas y consecuencias.
+
+DATOS: Usa la información del usuario, hechos documentados, condiciones de uso de las plataformas, licencias y normas de la jurisdicción analizada. Distingue claramente entre HECHOS COMPROBADOS, ALEGACIONES DE LAS PARTES, HIPÓTESIS y RECOMENDACIONES. No tienes acceso a internet: si algo puede haber cambiado (estado de demandas, acuerdos, leyes), indícalo como información a verificar. Si falta información, pídela o señala las limitaciones. No presentes como hechos las acusaciones de las discográficas ni presupongas que todo entrenamiento con obras protegidas es ilegal o uso legítimo.
+
+RESTRICCIONES: No inventes leyes, sentencias, licencias, cifras ni declaraciones. No emitas dictámenes jurídicos definitivos ni sustituyas a un abogado. No recomiendes vulnerar derechos ni evadir protecciones. No asumas que una canción generada por IA infringe automáticamente. No confundas imitación de estilo con copia de una obra concreta. No recomiendes bloquear sin analizar pruebas, legislación y alternativas. Protege información confidencial. Mantén objetividad, identifica conflictos de interés y justifica con evidencia.
+
+INTERVENCIÓN HUMANA: Demandas, licencias, medidas judiciales, bloqueos y acuerdos comerciales los deciden personas autorizadas; tú solo aportas análisis y recomendaciones.
+
+OBJETIVO: Ayudar a proteger los derechos de los creadores y evaluar soluciones responsables, equilibrando innovación, cumplimiento legal, remuneración justa y sostenibilidad.
+
+Responde siempre en español, en Markdown.`;
+
+const FORMATS = {
+  full: "FORMATO: Organiza la respuesta con estos apartados como encabezados ##: Problema identificado; Actores involucrados; Análisis legal y ético; Impacto económico y comercial; Alternativas de solución; Riesgos y medidas de control; Decisiones que requieren intervención humana; Recomendación final y justificación.",
+  table: "FORMATO: Responde principalmente con una tabla comparativa en Markdown de las tres alternativas (bloqueo, licencias, rediseño) con filas: viabilidad legal, impacto en artistas, impacto económico, riesgos, controles necesarios, decisión humana requerida. Después, una recomendación final breve.",
+  "3min": "FORMATO: Resumen para una exposición académica de tres minutos (unas 400 palabras): problema, actores, las tres alternativas en una línea cada una, recomendación final. Usa encabezados cortos y viñetas."
+};
+
+const $ = s => document.querySelector(s);
+const log = $("#log"), q = $("#q"), send = $("#send"), stopBtn = $("#stop"), status = $("#status");
+let turns = [], ctl = null, sample = null, busy = false;
+
+function md(text){
+  const html = DOMPurify.sanitize(marked.parse(text));
+  const d = document.createElement("div"); d.innerHTML = html;
+  d.querySelectorAll("table").forEach(t => { const w = document.createElement("div"); w.className = "tw"; t.replaceWith(w); w.appendChild(t); });
+  return d.innerHTML;
+}
+function bubble(role){
+  const el = document.createElement("div"); el.className = "msg " + role;
+  if (role === "bot") el.innerHTML = '<div class="who">MusicRights AI</div><div class="md"><span class="thinking">Analizando el caso…</span></div>';
+  log.appendChild(el); log.scrollTop = log.scrollHeight; return el;
+}
+const COPY = {
+  not_granted:"No se permitió usar Claude en esta página. Recárgala para volver a intentarlo.",
+  sampling_disabled:"Claude no está disponible para esta cuenta.",
+  rate_limited:"Demasiadas consultas seguidas o límite de uso alcanzado. Espera un momento y vuelve a enviar.",
+  session_expired:"Tu sesión expiró. Vuelve a iniciar sesión en Claude.",
+  refused:"Claude no respondió a esta consulta. Reformúlala.",
+  prompt_too_large:"La conversación es demasiado larga. Pulsa «Nueva conversación».",
+};
+function setBusy(b){ busy = b; send.disabled = b || !sample; stopBtn.hidden = !b; }
+
+async function ask(text){
+  if (!sample || busy || !text.trim()) return;
+  $("#intro")?.remove();
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const u = bubble("user"); u.textContent = text;
+  turns.push({role:"user", content: text + "\n\n" + FORMATS[mode]});
+  const b = bubble("bot"), out = b.querySelector(".md");
+  ctl = new AbortController(); setBusy(true);
+  const recent = turns.slice(-10); if (recent[0].role !== "user") recent.shift();
+  try{
+    const { text: ans, truncated } = await sample([{role:"user", content: RULES}, ...recent], {
+      cache:false, signal: ctl.signal, modelTier:"default",
+      onText: ({text}) => { out.innerHTML = md(text); log.scrollTop = log.scrollHeight; }
+    });
+    turns.push({role:"assistant", content: ans});
+    if (truncated) b.insertAdjacentHTML("beforeend", '<div class="err">Respuesta cortada por longitud. Pide una parte concreta.</div>');
+  }catch(e){
+    turns.pop();
+    if (e && e.text) out.innerHTML = md(e.text); else out.innerHTML = "";
+    if (e?.code !== "cancelled"){
+      const n = document.createElement("div"); n.className = "err";
+      n.textContent = COPY[e?.code] || "Se interrumpió la conexión. Vuelve a enviar la consulta.";
+      b.appendChild(n);
+      if (e?.code === "not_granted" || e?.code === "sampling_disabled"){ sample = null; }
+    } else if (!e.text) b.remove();
+  }finally{ setBusy(false); }
+}
+
+$("#f").addEventListener("submit", ev => { ev.preventDefault(); const t = q.value; q.value = ""; ask(t); });
+q.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey){ ev.preventDefault(); $("#f").requestSubmit(); } });
+stopBtn.addEventListener("click", () => ctl?.abort());
+const INTRO = $("#intro").outerHTML;
+function bindChips(){ document.querySelectorAll(".chip").forEach(c => c.onclick = () => ask(c.textContent)); }
+$("#reset").addEventListener("click", () => { ctl?.abort(); turns = []; log.innerHTML = INTRO; bindChips(); });
+
+bindChips();
+send.disabled = true;
+(async () => {
+  sample = window.claude ? await claude.use("sample") : null;
+  if (!sample){
+    status.textContent = "Ábrela en Claude para consultar al agente.";
+    log.insertAdjacentHTML("beforeend", '<div class="notice">Esta página necesita abrirse dentro de Claude para responder consultas.</div>');
+  }
+  setBusy(false);
+})();
+</script>
