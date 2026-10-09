@@ -201,8 +201,20 @@ send.disabled = true;
 (async () => {
   sample = window.claude ? await claude.use("sample") : null;
   if (!sample){
-    status.textContent = "Ábrela en Claude para consultar al agente.";
-    log.insertAdjacentHTML("beforeend", '<div class="notice">Esta página necesita abrirse dentro de Claude para responder consultas.</div>');
+    // Fuera de Claude (p. ej. Vercel): usa la función /api/chat del servidor.
+    sample = async (input, opts = {}) => {
+      const messages = input.slice(1); // el servidor añade el prompt del agente
+      let r;
+      try {
+        r = await fetch("/api/chat", { method:"POST", headers:{"content-type":"application/json"},
+          body: JSON.stringify({ messages }), signal: opts.signal });
+      } catch (e) { throw { code: opts.signal?.aborted ? "cancelled" : "upstream_error" }; }
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw { code: data.error || "upstream_error" };
+      opts.onText?.({ text: data.text, delta: data.text });
+      return { text: data.text, truncated: !!data.truncated };
+    };
+    status.textContent = "MusicRights AI · análisis orientativo, no sustituye a un abogado.";
   }
   setBusy(false);
 })();
